@@ -3,6 +3,9 @@
     Authors: Justin Earley and Dean Bunn
 #>
 
+#Var for Mass Action
+$global:MassAction = "Not-Set";
+
 #Custom Object for Box App Information
 $global:BoxAppInfo = new-object PSObject -Property (@{ client_id=""; client_secret=""; subject_id="";});
 
@@ -72,103 +75,139 @@ $nProgress = 0;
 # Mass Group Creation
 #################################################
 
-#Import Unique UCD Group CSV
-$csvUCDGroups = Import-CSV -Path "group_testing.csv";
-
-#Var for Groups URL
-$boxGroupsURL = $boxAPIBaseURL + "groups";
-
-#Loop Through Each Group Listing and Create the Group
-foreach($ucdGrp in $csvUCDGroups)
+if($MassAction -eq "Add-Groups")
 {
 
-    #Get\Check OAuth API Access Token from Box
-    Get-BoxAPIToken;
+    #Import Unique UCD Group CSV
+    $csvUCDGroups = Import-CSV -Path "testing_groups.csv";
 
-    #Var for Header Authorization Bearer Key to Box
-    $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+    #Var for Groups URL
+    $boxGroupsURL = $boxAPIBaseURL + "groups";
 
-    #Var for Custom Post Body
-    $cstPostBody = [PSCustomObject]@{ 
-                                        name    = ""
-                                    }
+    #Loop Through Each Group Listing and Create the Group
+    foreach($ucdGrp in $csvUCDGroups)
+    {
 
-    #Load Post Body
-    $cstPostBody.name = $ucdGrp.name;
-    
-    #Convert Post Body to Json Object
-    $jsonPostBody = $cstPostBody | ConvertTo-Json -Compress;
+        #Increment Progress Indicator
+        $nProgress++;
 
-    #Make Post API call to Create Box Group
-    Invoke-RestMethod -Uri $boxGroupsURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
+        #Display Progress
+        Write-Output $nProgress;
 
-}#End of $csvUCDGroups Foreach
+        #Var for Existing Group with Same Name
+        $bExistingGrp = $false;
 
+        #Get\Check OAuth API Access Token from Box
+        Get-BoxAPIToken;
+
+        #Var for Header Authorization Bearer Key to Box
+        $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+        #Var for Group Query URL by Group Name
+        $grpQueryURL = $boxAPIBaseURL + "groups?filter_term=" + $ucdGrp.name;
+
+        #Query Box API for Group by Name
+        $grpQueryResult = Invoke-RestMethod -Uri $grpQueryURL -Method Get -Headers $headersBox;
+
+        #Check Returned Query Result Count Check
+        if($grpQueryResult.total_count -gt 0)
+        {
+            #Loop Through Query Results Looking for Exis Group Name
+            foreach($grpQryRslt in $grpQueryResult.entries)
+            {
+
+                #Existing Group Name
+                if($grpQryRslt.name.ToString().ToLower() -eq $ucdGrp.name.ToString().ToLower())
+                {
+                    $bExistingGrp = $true;
+                }
+
+            }#End of Group Query Results Foreach
+
+        }#End of Group Query Results Count Check
+
+        #Create the New Unique Group
+        if($bExistingGrp -eq $false)
+        {
+            #Var for Custom Post Body
+            $cstPostBody = [PSCustomObject]@{ 
+                                                name    = ""
+                                            }
+
+            #Load Post Body
+            $cstPostBody.name = $ucdGrp.name.ToString().Trim();
+            
+            #Convert Post Body to Json Object
+            $jsonPostBody = $cstPostBody | ConvertTo-Json -Compress;
+
+            #Make Post API call to Create Box Group
+            Invoke-RestMethod -Uri $boxGroupsURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
+
+        }#End of $bMakeGrp Check
+
+    }#End of $csvUCDGroups Foreach
+
+}#End of Add-Groups Action
 
 #################################################
 # Mass User Creation
 #################################################
 
-#Import Unique UCD User CSV
-$csvUCDUsrs = Import-CSV -Path "user_testing.csv";
-
-foreach($ucdUsr in $csvUCDUsrs)
+if($MassAction -eq "Add-Users")
 {
-    #Increment Progress Indicator
-    $nProgress++;
 
-    #Display Progress
-    Write-Output $nProgress;
-    
-    #Var for User Query URL by Email Address
-    $usrQueryURL = $boxAPIBaseURL + "users?filter_term=" + $ucdUsr.email;
+    #Import Unique UCD User CSV
+    $csvUCDUsrs = Import-CSV -Path "testing_users.csv";
 
-    #Var for Users URL
-    $boxUsersURL = $boxAPIBaseURL + "users";
-
-    #Get\Check OAuth API Access Token from Box
-    Get-BoxAPIToken;
-
-    #Var for Header Authorization Bearer Key to Box
-    $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
-
-    #Query Box API for User by Email Address
-    $usrQueryResult = Invoke-RestMethod -Uri $usrQueryURL -Method Get -Headers $headersBox;
-
-    #Check Returned Query Result Count Check
-    if($usrQueryResult.total_count -eq 0)
-    {   
-
-        #Var for Custom Post Body
-        $cstPostBody = [PSCustomObject]@{ 
-                                          name    = ""
-                                          login   = ""
-                                          space_amount = -1
-                                        }
-
-        #Create That User
-        $cstPostBody.name = $ucdUsr.name;
-        $cstPostBody.login = $ucdUsr.email;
-
-        #Convert Post Body to Json Object
-        $jsonPostBody = $cstPostBody | ConvertTo-Json -Compress;
-
-        #Make Post API call to Create Box User
-        Invoke-RestMethod -Uri $boxUsersURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
-
-    }
-
-    <#
-    else
+    foreach($ucdUsr in $csvUCDUsrs)
     {
-        Write-Output "user exists"
-        #$usrQueryResult.entries[0].name;
-        #$usrQueryResult.entries[0].login;
-    }
-    #>
+        #Increment Progress Indicator
+        $nProgress++;
 
-}#End of $csvUCDUsrs Foreach
+        #Display Progress
+        Write-Output $nProgress;
+        
+        #Var for User Query URL by Email Address
+        $usrQueryURL = $boxAPIBaseURL + "users?filter_term=" + $ucdUsr.email;
 
+        #Var for Users URL
+        $boxUsersURL = $boxAPIBaseURL + "users";
+
+        #Get\Check OAuth API Access Token from Box
+        Get-BoxAPIToken;
+
+        #Var for Header Authorization Bearer Key to Box
+        $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+        #Query Box API for User by Email Address
+        $usrQueryResult = Invoke-RestMethod -Uri $usrQueryURL -Method Get -Headers $headersBox;
+
+        #Check Returned Query Result Count Check
+        if($usrQueryResult.total_count -eq 0)
+        {   
+
+            #Var for Custom Post Body
+            $cstPostBody = [PSCustomObject]@{ 
+                                            name    = ""
+                                            login   = ""
+                                            space_amount = -1
+                                            }
+
+            #Create That User
+            $cstPostBody.name = $ucdUsr.name;
+            $cstPostBody.login = $ucdUsr.email;
+
+            #Convert Post Body to Json Object
+            $jsonPostBody = $cstPostBody | ConvertTo-Json -Compress;
+
+            #Make Post API call to Create Box User
+            Invoke-RestMethod -Uri $boxUsersURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
+
+        }#End of User Query Results Count Check
+
+    }#End of $csvUCDUsrs Foreach
+
+}
 
 
 
