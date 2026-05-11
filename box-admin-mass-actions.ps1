@@ -4,7 +4,7 @@
 #>
 
 #Var for Mass Action
-$global:MassAction = "Add-Memberships";
+$global:MassAction = "Enter-Action";
 
 #Custom Object for Box App Information
 $global:BoxAppInfo = new-object PSObject -Property (@{ client_id=""; client_secret=""; subject_id="";});
@@ -77,6 +77,50 @@ $nProgress = 0;
 
 if($MassAction -eq "Add-Memberships")
 {
+    #Var for Membership URL
+    $boxMembershipURL = $boxAPIBaseURL + "group_memberships";
+
+    #Import Membership Assignments CSV
+    $csvMembershipAssignments = Import-CSV -Path "testing_memberships.csv";
+
+    #Loop Through Each Membership Assignment
+    foreach($boxMbrRqst in $csvMembershipAssignments)
+    {
+
+        #Get\Check OAuth API Access Token from Box
+        Get-BoxAPIToken;
+
+        #Var for Header Authorization Bearer Key to Box
+        $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+        #Var for Custom Post Body
+        $cstPostBody = [PSCustomObject]@{ 
+                                          user = [PSCustomObject]@{ id = ""}
+                                          group = [PSCustomObject]@{ id = ""}
+                                        }
+
+        #Assign Values to Custom Post Body
+        $cstPostBody.user.id = $boxMbrRqst."box-user-id";
+        $cstPostBody.group.id = $boxMbrRqst."box-group-id";
+        
+        #Convert Post Body to Json Object
+        $jsonPostBody = $cstPostBody | ConvertTo-Json -Compress;
+
+        #Make Post API call to Add Group Membership
+        Invoke-RestMethod -Uri $boxMembershipURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
+
+
+    }#End of $csvMembershipAssignments Foreach
+
+}#End of Add-Memberships Mass Action
+
+
+#################################################
+# Mass Student Group Membership Adds
+#################################################
+
+if($MassAction -eq "Add-Student-Group-Memberships")
+{
 
     #Var for Membership URL
     $boxMembershipURL = $boxAPIBaseURL + "group_memberships";
@@ -141,26 +185,10 @@ if($MassAction -eq "Add-Memberships")
 
     }#End of $csvUCDRegistration Foreach
 
-
-    <#
-        #Get\Check OAuth API Access Token from Box
-        Get-BoxAPIToken;
-
-        #Var for Header Authorization Bearer Key to Box
-        $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
-
-        $bxUsrID = "201321578";
-        $bxGrpID = "27511840300";
-        $jsonPostBody = "{""user"":{""id"":""$bxUsrID""},""group"":{""id"":""$bxGrpID""}}";
-
-        #Make Post API call to Add Group Membership
-        Invoke-RestMethod -Uri $boxMembershipURL -Method Post -Headers $headersBox -Body $jsonPostBody -ContentType "application/json";
-    #>
-
     #Export Reporting Array to CSV
     $arrNonEnterpriseBoxAcnts | Export-Csv -Path $rptName -NoTypeInformation;
 
-}#End of Add-Memberships
+}#End of Add-Student-Group-Memberships
 
 #################################################
 # Mass Group Creation
