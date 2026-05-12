@@ -4,7 +4,7 @@
 #>
 
 #Var for Mass Action
-$global:MassAction = "Enter-Action";
+$global:MassAction = "Empty-Groups-Membership";
 
 #Custom Object for Box App Information
 $global:BoxAppInfo = new-object PSObject -Property (@{ client_id=""; client_secret=""; subject_id="";});
@@ -189,6 +189,99 @@ if($MassAction -eq "Add-Student-Group-Memberships")
     $arrNonEnterpriseBoxAcnts | Export-Csv -Path $rptName -NoTypeInformation;
 
 }#End of Add-Student-Group-Memberships
+
+
+##################################################
+# Mass Empty Group Membership
+##################################################
+
+if($MassAction -eq "Empty-Groups-Membership")
+{
+    
+    #Import Group CSV
+    $csvBoxGrps = Import-CSV -Path "testing_groups.csv";
+
+    #Var for Box Limit
+    [int]$nBoxLimit = 100;
+
+    #Loop Through All the Groups
+    foreach($boxGrp in $csvBoxGrps)
+    {
+
+        #Var for Box Offset
+        [int]$nBoxOffSet = 0;
+
+        #Var for Get More Memberships from Box
+        $bGetMore = $true;
+
+        #Array for Membership IDs
+        $arrMbrShpIDs = @();
+
+        #Do\While Loop to Pull Full Group Membership
+        do
+        {
+
+            #Get\Check OAuth API Access Token from Box
+            Get-BoxAPIToken;
+
+            #Var for Header Authorization Bearer Key to Box
+            $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+            #Var for Dynamic Groups Membership URL
+            $boxGrpMbrspURL = $boxAPIBaseURL + "groups/" + $boxGrp.id + "/memberships?offset=" + $nBoxOffSet.ToString() + "&limit=" + $nBoxLimit.ToString();
+        
+            $boxGrpMbrspRslts = Invoke-RestMethod -Uri $boxGrpMbrspURL -Method Get -Headers $headersBox;
+
+            if($boxGrpMbrspRslts.total_count -gt 0 -and $null -ne $boxGrpMbrspRslts.entries)
+            {
+                #Loop Through Membership Results
+                foreach($bgmrEntry in $boxGrpMbrspRslts.entries)
+                {
+                    $arrMbrShpIDs += $bgmrEntry.id.ToString();
+                }
+
+                #Increment Offset
+                $nBoxOffSet += $boxGrpMbrspRslts.limit;
+
+                #Check Offset to Total Count
+                if($nBoxOffSet -ge $boxGrpMbrspRslts.total_count)
+                {
+                    $bGetMore = $false;
+                }
+
+            }
+            else
+            {
+
+                $bGetMore = $false;
+
+            }#End of $boxGrpMbrspRslts Checks
+            
+        }
+        while($bGetMore -eq $true)
+
+        #Loop Through Each Group Membership ID
+        foreach($mbrShpID in $arrMbrShpIDs)
+        {
+
+            #Get\Check OAuth API Access Token from Box
+            Get-BoxAPIToken;
+
+            #Var for Header Authorization Bearer Key to Box
+            $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+            #Var for Group Membership Deletion URL
+            $boxGrpMbrspDltURL = $boxAPIBaseURL + "group_memberships/" + $mbrShpID.ToString();
+
+            #Make Deletion Request
+            $boxMbrDltRslts = Invoke-RestMethod -Uri $boxGrpMbrspDltURL -Method Delete -Headers $headersBox;
+            
+        }#End of $arrMbrShpIDs Foreach
+
+    }#End of $csvBoxGrps Foreach
+
+}
+
 
 #################################################
 # Mass Group Creation
