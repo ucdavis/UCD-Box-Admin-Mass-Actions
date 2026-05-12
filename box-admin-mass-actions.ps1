@@ -4,7 +4,7 @@
 #>
 
 #Var for Mass Action
-$global:MassAction = "Empty-Groups-Membership";
+$global:MassAction = "Create-Groups";
 
 #Custom Object for Box App Information
 $global:BoxAppInfo = new-object PSObject -Property (@{ client_id=""; client_secret=""; subject_id="";});
@@ -284,10 +284,42 @@ if($MassAction -eq "Empty-Groups-Membership")
 
 
 #################################################
+# Mass Group Deletion
+#################################################
+
+if($MassAction -eq "Delete-Groups")
+{
+    #Import Unique UCD Group CSV
+    $csvBoxGroups = Import-CSV -Path "testing_groups.csv";
+
+    #Var for Groups URL
+    $boxGroupsURL = $boxAPIBaseURL + "groups/";
+
+    foreach($boxGrp in $csvBoxGroups)
+    {
+
+        #Get\Check OAuth API Access Token from Box
+        Get-BoxAPIToken;
+
+        #Var for Header Authorization Bearer Key to Box
+        $headersBox = @{"Authorization"="Bearer " + $BoxAPITokenInfo.box_api_token};
+
+        #Var for Specific Box Group Deletion URL
+        $boxGrpsDltURL = $boxGroupsURL + $boxGrp.id.ToString();
+
+        #Make Deletion Request
+        $boxGrpDltRslts = Invoke-RestMethod -Uri $boxGrpsDltURL -Method Delete -Headers $headersBox;
+
+    }#End of $csvBoxGroups Foreach
+
+}
+
+
+#################################################
 # Mass Group Creation
 #################################################
 
-if($MassAction -eq "Add-Groups")
+if($MassAction -eq "Create-Groups")
 {
 
     #Import Unique UCD Group CSV
@@ -359,13 +391,13 @@ if($MassAction -eq "Add-Groups")
 
     }#End of $csvUCDGroups Foreach
 
-}#End of Add-Groups Action
+}#End of Create-Groups Action
 
 #################################################
 # Mass User Creation
 #################################################
 
-if($MassAction -eq "Add-Users")
+if($MassAction -eq "Create-Users")
 {
 
     #Import Unique UCD User CSV
@@ -419,7 +451,7 @@ if($MassAction -eq "Add-Users")
 
     }#End of $csvUCDUsrs Foreach
 
-}
+}#End of Create-Users Action
 
 
 
