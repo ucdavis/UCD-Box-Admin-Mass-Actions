@@ -4,7 +4,7 @@
 #>
 
 #Var for Mass Action
-$global:MassAction = "Create-Groups";
+$global:MassAction = "Test-Token";
 
 #Custom Object for Box App Information
 $global:BoxAppInfo = new-object PSObject -Property (@{ client_id=""; client_secret=""; subject_id="";});
@@ -70,6 +70,19 @@ function Get-BoxAPIToken()
 
 #Var for Progress Indicator
 $nProgress = 0;
+
+#################################################
+# Test OAuth Token
+#################################################
+
+if($MassAction -eq "Test-Token")
+{
+    #Get\Check OAuth API Access Token from Box
+    Get-BoxAPIToken;
+
+    $BoxAPITokenInfo.expires_in_ticks
+}
+
 
 #################################################
 # Mass Group Membership Adds
